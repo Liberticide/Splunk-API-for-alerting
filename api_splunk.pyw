@@ -192,7 +192,7 @@ url_label = tk.Label(root, text="URL :")
 url_label.grid(row=0, column=0, padx=5, pady=5)
 url_entry = tk.Entry(root, width=50)
 url_entry.grid(row=0, column=1, padx=5, pady=5, sticky="w")
-url_entry.insert(0, "https://192.168.10.83:8089")
+url_entry.insert(0, "https://splunk.server.exemple:8089")
 
 # Création de la zone de saisie pour le nom d'utilisateur
 username_label = tk.Label(root, text="Nom d'utilisateur :")
