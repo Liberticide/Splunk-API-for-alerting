@@ -123,7 +123,10 @@ def send_query():
         
         # adaptation de la hauteur de la zone de texte en fonction du nombre de lignes
         # on ajoute 1 à la hauteur pour afficher la ligne des noms des colonnes
-        result_text.config(height=len(data["rows"])+2)
+        if len(data["rows"]) < 40:
+            result_text.config(height=len(data["rows"])+2)
+        else:
+            result_text.config(height=40)
 
     # Programmation de la prochaine exécution de la fonction après un intervalle de temps donné
     root.after(interval*1000, send_query)
