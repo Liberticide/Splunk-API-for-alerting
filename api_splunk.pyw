@@ -16,17 +16,22 @@ def send_query():
     response = requests.get(
         "{}/services/search/jobs/export".format(splunk_url),
         auth=(splunk_username, splunk_password),
-        params={"search": query, "output_mode": "json_rows"},
+        params={"search": query, "output_mode": "json_rows", "preview": "false"},
         verify=False
     )
     # Vérification de la réponse de l'API
     if response.status_code != 200:
         messagebox.showerror("Erreur", "Erreur lors de la requête à l'API Splunk : {}".format(response.text))
     else:
-        # Affichage des données reçues
-        #data_json = json.dumps(response.text)
-        data = json.loads(response.text)
-        #messagebox.showinfo("Résultat de la requête", data)
+        # Vérification du format de la réponse      
+        # verifi si la valeur de reponse.text est au format json
+        try:
+            data = json.loads(response.text)
+        except ValueError:
+            messagebox.showerror("Erreur", "Erreur dans le format de données JSON : {}".format(response.text))
+            result_text.delete(1.0, tk.END)
+            result_text.insert(tk.END, response.text)
+            return
 
         result_text.delete(1.0, tk.END)
 
@@ -123,6 +128,7 @@ def send_query():
         
         # adaptation de la hauteur de la zone de texte en fonction du nombre de lignes
         # on ajoute 1 à la hauteur pour afficher la ligne des noms des colonnes
+        # la hauteur de la zone de texte est limitée à 20 lignes
         if len(data["rows"]) < 40:
             result_text.config(height=len(data["rows"])+2)
         else:
@@ -216,8 +222,8 @@ query_label = tk.Label(root, text="Requête :")
 query_label.grid(row=3, column=0, padx=5, pady=5)
 query_entry = tk.Entry(root, width=150, )
 query_entry.grid(row=3, column=1, padx=5, pady=5, sticky="w")
-query_entry.insert(0, '| makeresults count=17 | streamstats count AS NB \
-| eval host="aix712p".NB \
+query_entry.insert(0, '| makeresults count=50 | streamstats count AS NB \
+| eval host="rh".NB \
 | eval Critical=90, Warning=80, load=random() % 100 \
 | eval status=case(load>=Critical, "Critical", load>=Warning, "Warning", load<Warning AND load>=0, "OK", true(), "Unknown") \
 | eval summary_type="status_CPU", detail="Alerte CPU!!!!!!!!!!" \
