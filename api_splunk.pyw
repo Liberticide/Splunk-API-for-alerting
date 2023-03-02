@@ -2,20 +2,100 @@ import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk
 import json
+from xml.dom import minidom
 import requests
+import os
 
-def send_query():
+
+# création d'une fonction de sauvegarde des paramètres de connexion
+def save_config():
+    # récupération des paramètres de connexion saisis
+    splunk_url = url_entry.get()
+    splunk_username = username_entry.get()
+    query = query_entry.get()
+    interval = int(interval_var.get()) * 60
+
+    # création d'un dictionnaire avec les paramètres de connexion
+    config = {
+        "splunk_url": splunk_url,
+        "splunk_username": splunk_username,
+        "query": query,
+        "interval": interval
+    }
+
+    # sauvegarde des paramètres de connexion dans le fichier config.json et création du fichier si il n'existe pas
+    # le fichier config.json est créé dans le même répertoire que le script
+    with open(os.path.join(os.path.dirname(__file__), "config.json"), "w") as f:
+        json.dump(config, f)
+
+    # affichage d'un message de confirmation
+    messagebox.showinfo("Confirmation", "Configuration sauvegardée")
+
+
+# création d'une fonction de chargement des paramètres de connexion
+def load_config():
+    # chargement des paramètres de connexion depuis le fichier config.json
+    with open(os.path.join(os.path.dirname(__file__), "config.json"), "r") as f:
+        config = json.load(f)
+
+    # affichage des paramètres de connexion dans les champs de saisie
+    url_entry.delete(0, tk.END)
+    url_entry.insert(0, config["splunk_url"])
+    username_entry.delete(0, tk.END)
+    username_entry.insert(0, config["splunk_username"])
+    query_entry.delete(0, tk.END)
+    query_entry.insert(0, config["query"])
+    interval_var.set(str(config["interval"] // 60))
+
+
+# création d'une fonction de connexion à l'API Splunk
+def connect():
+    global splunk_token
+
     # Récupération des paramètres de connexion saisis
     splunk_url = url_entry.get()
     splunk_username = username_entry.get()
     splunk_password = password_entry.get()
+
+    # Envoi de la requête POST à l'API Splunk
+    response = requests.post(
+        "{}/services/auth/login".format(splunk_url),
+        headers = {'Content-Type': 'application/json', 'Accept': 'application/json'},
+        data={"username": splunk_username, "password": splunk_password},
+        verify=False
+    )
+
+    # Vérification de la réponse de l'API
+    if response.status_code == 200:
+        # Récupération du token de session dans la réponse xml de l'API
+        xmldoc = minidom.parseString(response.text)
+        itemlist = xmldoc.getElementsByTagName('sessionKey')
+        splunk_token = itemlist[0].firstChild.nodeValue
+    
+    # Affichage d'un message d'erreur si la connexion a échoué
+    else:
+        messagebox.showerror("Erreur", "Erreur lors de la connexion à l'API Splunk : {}".format(response.text))
+
+
+# création d'une fonction d'envoi de la requête à l'API Splunk
+def send_query():
+    # Récupération des paramètres de connexion saisis
+    splunk_url = url_entry.get()
     query = query_entry.get()
     interval = int(interval_var.get()) * 60
+
+    # test si le token est définit
+    try:
+        splunk_token
+    except NameError:
+        # creation du token
+        connect()
 
     # Envoi de la requête GET à l'API Splunk
     response = requests.get(
         "{}/services/search/jobs/export".format(splunk_url),
-        auth=(splunk_username, splunk_password),
+        #auth=(splunk_username, splunk_password),
+        headers = { 'Authorization': ('Splunk %s' %splunk_token)},
         params={"search": query, "output_mode": "json_rows", "preview": "false"},
         verify=False
     )
@@ -90,6 +170,7 @@ def send_query():
             # la données sont stockées dans le dictionnaire "status_count"
             # on initialise le dictionnaire avec les "status" possibles
             status_count = {"Critical": 0, "Warning": 0, "OK": 0, "Unknown": 0}
+
             # on compte le nombre de "status" dans la colonne "status" de la variable "data["row"]"
             # pour trouver la colonne "status", on parcours la liste "data["fields"]" et on vérifie si la valeur de la colonne est égale à "status"
             # si la valeur de la colonne est égale à "status", on récupère l'index de la colonne
@@ -120,6 +201,11 @@ def send_query():
                 status_text_ok.insert(tk.END, "OK: " + str(status_count["OK"]))
                 status_text_unknown.insert(tk.END, "Unknown: " + str(status_count["Unknown"]))
 
+                # faire clignoter la fenêtre si le nombre de lignes avec le "status" "Critical" est supérieur à 0
+                if status_count["Critical"] > 0:
+                    root.wm_attributes("-topmost", 1)
+                    root.after(100, lambda: root.wm_attributes("-topmost", 0))
+
         else:
             result_text.insert(tk.END, "Aucun résultat")
         
@@ -147,6 +233,7 @@ def hide_show():
         root.attributes("-topmost", True)
         root.overrideredirect(True)
 
+        # suppression des widgets
         url_label.grid_remove()
         url_entry.grid_remove()
         username_label.grid_remove()
@@ -162,17 +249,24 @@ def hide_show():
         scrollbar.grid_remove()
         send_button.grid_remove()
 
+        # affichage des widgets des "status"
         status_label.grid(row=5, column=3, padx=5, pady=5)
         status_text_critical.grid(row=5, column=4, padx=5, pady=5)
         status_text_warning.grid(row=5, column=5, padx=5, pady=5)
         status_text_ok.grid(row=5, column=6, padx=5, pady=5)
         status_text_unknown.grid(row=5, column=7, padx=5, pady=5)
 
+        # modification du texte du bouton "show_button"
         show_button.config(text="Afficher")
+
+        # suppression du menu
+        delete_menu()
+
     else:
         root.attributes("-topmost", False)
         root.overrideredirect(False)
 
+        # affichage des widgets
         url_label.grid(row=0, column=0, padx=5, pady=5)
         url_entry.grid(row=0, column=1, padx=5, pady=5, sticky="w")
         username_label.grid(row=1, column=0, padx=5, pady=5)
@@ -188,20 +282,48 @@ def hide_show():
         scrollbar.grid(row=7, column=2, sticky="ns")
         send_button.grid(row=5, column=1, padx=5, pady=5, sticky="w")
 
+        # suppression des widgets des "status"
         status_label.grid_remove()
         status_text_critical.grid_remove()
         status_text_warning.grid_remove()
         status_text_ok.grid_remove()
         status_text_unknown.grid_remove()
         
+        # modification du texte du bouton "show_button"
         show_button.config(text="Cacher")
+
+        # création d'une barre de menu
+        create_menu()
+
+# Fonction  pour la création d'un menu
+def create_menu():
+
+    # Création d'un menu
+    menu_bar = tk.Menu(root)
+    root.config(menu=menu_bar)
+
+    # Création d'un menu "Paramètres"
+    settings_menu = tk.Menu(menu_bar, tearoff=0)
+    menu_bar.add_cascade(label="Paramètres", menu=settings_menu)
+    settings_menu.add_command(label="Nouveau Token", command=connect)
+    settings_menu.add_command(label="Sauvegarder", command=save_config)
+    settings_menu.add_command(label="Charger", command=load_config)
+    settings_menu.add_command(label="Réduir", command=hide_show)
+    settings_menu.add_command(label="Quitter", command=root.destroy)
+
+# fonction pour la suppression du menu
+def delete_menu():
+    menu_bar = tk.Menu(root)
+    root.config(menu=menu_bar)
+
+create_menu()
 
 # Création de la zone de saisie pour l'url de l'API
 url_label = tk.Label(root, text="URL :")
 url_label.grid(row=0, column=0, padx=5, pady=5)
 url_entry = tk.Entry(root, width=50)
 url_entry.grid(row=0, column=1, padx=5, pady=5, sticky="w")
-url_entry.insert(0, "https://splunk.server.exemple:8089")
+url_entry.insert(0, "https://server.splunk.exemple:8089")
 
 # Création de la zone de saisie pour le nom d'utilisateur
 username_label = tk.Label(root, text="Nom d'utilisateur :")
@@ -223,7 +345,7 @@ query_label.grid(row=3, column=0, padx=5, pady=5)
 query_entry = tk.Entry(root, width=150, )
 query_entry.grid(row=3, column=1, padx=5, pady=5, sticky="w")
 query_entry.insert(0, '| makeresults count=50 | streamstats count AS NB \
-| eval host="rh".NB \
+| eval host="RH".NB \
 | eval Critical=90, Warning=80, load=random() % 100 \
 | eval status=case(load>=Critical, "Critical", load>=Warning, "Warning", load<Warning AND load>=0, "OK", true(), "Unknown") \
 | eval summary_type="status_CPU", detail="Alerte CPU!!!!!!!!!!" \
