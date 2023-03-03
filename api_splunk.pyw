@@ -1,11 +1,15 @@
 import tkinter as tk
 from tkinter import messagebox
-from tkinter import ttk
-import json
 from xml.dom import minidom
-import requests
-import os
+import json, requests, os
 
+
+version = '0.8'
+status_count = ""
+
+# création d'une fonction about
+def about():
+    messagebox.showinfo("About", "API Splunk v{}".format(version))
 
 # création d'une fonction de sauvegarde des paramètres de connexion
 def save_config():
@@ -57,8 +61,8 @@ def connect():
     splunk_username = username_entry.get()
     splunk_password = password_entry.get()
 
-    # Envoi de la requête POST à l'API Splunk
-    response = requests.post(
+    # Envoi de la requête GET à l'API Splunk 
+    response = requests.get(
         "{}/services/auth/login".format(splunk_url),
         headers = {'Content-Type': 'application/json', 'Accept': 'application/json'},
         data={"username": splunk_username, "password": splunk_password},
@@ -79,6 +83,9 @@ def connect():
 
 # création d'une fonction d'envoi de la requête à l'API Splunk
 def send_query():
+
+    global status_count
+
     # Récupération des paramètres de connexion saisis
     splunk_url = url_entry.get()
     query = query_entry.get()
@@ -153,7 +160,7 @@ def send_query():
                     result_text_format = " | ".join(data["rows"][i])
                     if "Critical" in result_text_format:
                         result_text.insert(tk.END, result_text_format.replace("{", "").replace("}", ""), "Critical")
-                        result_text.tag_config("Critical", background="red", selectbackground="blue", selectforeground="white")
+                        result_text.tag_config("Critical", background="dark red", selectbackground="blue", selectforeground="white", foreground="white")
                     elif "Warning" in result_text_format:
                         result_text.insert(tk.END, result_text_format.replace("{", "").replace("}", ""), "Warning")
                         result_text.tag_config("Warning", background="yellow", selectbackground="blue", selectforeground="white")
@@ -168,7 +175,7 @@ def send_query():
 
             # comptage du nombre de lignes par "status", les "status" possibles sont "Critical", "Warning", "OK" et "Unknown"
             # la données sont stockées dans le dictionnaire "status_count"
-            # on initialise le dictionnaire avec les "status" possibles
+            # on initialise le dictionnaire avec les "status" possibles et on leur donne la valeur 0
             status_count = {"Critical": 0, "Warning": 0, "OK": 0, "Unknown": 0}
 
             # on compte le nombre de "status" dans la colonne "status" de la variable "data["row"]"
@@ -200,11 +207,6 @@ def send_query():
                 status_text_warning.insert(tk.END, "Warning: " + str(status_count["Warning"]))
                 status_text_ok.insert(tk.END, "OK: " + str(status_count["OK"]))
                 status_text_unknown.insert(tk.END, "Unknown: " + str(status_count["Unknown"]))
-
-                # faire clignoter la fenêtre si le nombre de lignes avec le "status" "Critical" est supérieur à 0
-                if status_count["Critical"] > 0:
-                    root.wm_attributes("-topmost", 1)
-                    root.after(100, lambda: root.wm_attributes("-topmost", 0))
 
         else:
             result_text.insert(tk.END, "Aucun résultat")
@@ -311,6 +313,11 @@ def create_menu():
     settings_menu.add_command(label="Réduir", command=hide_show)
     settings_menu.add_command(label="Quitter", command=root.destroy)
 
+    # creation d'un menu "Aide"
+    help_menu = tk.Menu(menu_bar, tearoff=0)
+    menu_bar.add_cascade(label="Aide", menu=help_menu)
+    help_menu.add_command(label="A propos", command=about)
+
 # fonction pour la suppression du menu
 def delete_menu():
     menu_bar = tk.Menu(root)
@@ -345,7 +352,7 @@ query_label.grid(row=3, column=0, padx=5, pady=5)
 query_entry = tk.Entry(root, width=150, )
 query_entry.grid(row=3, column=1, padx=5, pady=5, sticky="w")
 query_entry.insert(0, '| makeresults count=50 | streamstats count AS NB \
-| eval host="RH".NB \
+| eval host="aix712p".NB \
 | eval Critical=90, Warning=80, load=random() % 100 \
 | eval status=case(load>=Critical, "Critical", load>=Warning, "Warning", load<Warning AND load>=0, "OK", true(), "Unknown") \
 | eval summary_type="status_CPU", detail="Alerte CPU!!!!!!!!!!" \
@@ -377,7 +384,7 @@ send_button.grid(row=5, column=1, padx=5, pady=5, sticky="w")
 # creation d'une zone de texte pour afficher les statuts
 status_label = tk.Label(root, text="Statut :")
 status_text_critical = tk.Text(root, height=1, width=20)
-status_text_critical.configure(background="red", selectbackground="blue", selectforeground="white")
+status_text_critical.configure(background="dark red", selectbackground="blue", selectforeground="white", foreground="white")
 status_text_warning = tk.Text(root, height=1, width=20)
 status_text_warning.configure(background="yellow", selectbackground="blue", selectforeground="white")
 status_text_ok = tk.Text(root, height=1, width=20)
