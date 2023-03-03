@@ -11,6 +11,38 @@ status_count = ""
 def about():
     messagebox.showinfo("About", "API Splunk v{}".format(version))
 
+
+# test si le fichier config.json existe
+if os.path.isfile(os.path.join(os.path.dirname(__file__), "config.json")):
+    # chargement des paramètres de connexion depuis le fichier config.json
+    with open(os.path.join(os.path.dirname(__file__), "config.json"), "r") as f:
+        config = json.load(f)
+
+    # définition des paramètres de connexion
+    # test si les paramètres de connexion sont présents dans le fichier config.json
+    if "splunk_url" not in config:
+        config["splunk_url"] = "https://server.splunk.exemple:8089"
+    if "splunk_username" not in config:
+        config["splunk_username"] = "admin"
+    if "query" not in config:
+        config["query"] = '| makeresults count=50 | streamstats count AS NB \
+| eval host="RH".NB \
+| eval Critical=90, Warning=80, load=random() % 100 \
+| eval status=case(load>=Critical, "Critical", load>=Warning, "Warning", load<Warning AND load>=0, "OK", true(), "Unknown") \
+| eval summary_type="status_CPU", detail="Alerte CPU!!!!!!!!!!" \
+| eval Time=strftime(_time, "%Y-%m-%d %Hh%Mm%Ss") \
+| table Time summary_type host status load Warning Critical detail \
+| sort status host summary_type'
+    if "interval" not in config:
+        config["interval"] = "5"
+
+
+    config_splunk_url = config["splunk_url"]
+    config_splunk_username = config["splunk_username"]
+    config_splunk_query = config["query"]
+    config_interval = config["interval"]
+
+
 # création d'une fonction de sauvegarde des paramètres de connexion
 def save_config():
     # récupération des paramètres de connexion saisis
@@ -330,14 +362,14 @@ url_label = tk.Label(root, text="URL :")
 url_label.grid(row=0, column=0, padx=5, pady=5)
 url_entry = tk.Entry(root, width=50)
 url_entry.grid(row=0, column=1, padx=5, pady=5, sticky="w")
-url_entry.insert(0, "https://server.splunk.exemple:8089")
+url_entry.insert(0, config_splunk_url)
 
 # Création de la zone de saisie pour le nom d'utilisateur
 username_label = tk.Label(root, text="Nom d'utilisateur :")
 username_label.grid(row=1, column=0, padx=5, pady=5)
 username_entry = tk.Entry(root)
 username_entry.grid(row=1, column=1, padx=5, pady=5, sticky="w")
-username_entry.insert(0, "admin")
+username_entry.insert(0, config_splunk_username)
 
 # Création de la zone de saisie pour le mot de passe
 password_label = tk.Label(root, text="Mot de passe :")
@@ -351,14 +383,7 @@ query_label = tk.Label(root, text="Requête :")
 query_label.grid(row=3, column=0, padx=5, pady=5)
 query_entry = tk.Entry(root, width=150, )
 query_entry.grid(row=3, column=1, padx=5, pady=5, sticky="w")
-query_entry.insert(0, '| makeresults count=50 | streamstats count AS NB \
-| eval host="aix712p".NB \
-| eval Critical=90, Warning=80, load=random() % 100 \
-| eval status=case(load>=Critical, "Critical", load>=Warning, "Warning", load<Warning AND load>=0, "OK", true(), "Unknown") \
-| eval summary_type="status_CPU", detail="Alerte CPU!!!!!!!!!!" \
-| eval Time=strftime(_time, "%Y-%m-%d %Hh%Mm%Ss") \
-| table Time summary_type host status load Warning Critical detail \
-| sort status host summary_type')
+query_entry.insert(0, config_splunk_query)
 
 # Création d'une liste deroulante pour choisir l'intervalle de temps en secondes entre chaque requête
 # l'utilisateur fait son choix dans la liste deroulante et le libellé du choix est affiché en minutes qui sont converties en secondes
@@ -368,7 +393,7 @@ query_entry.insert(0, '| makeresults count=50 | streamstats count AS NB \
 interval_label = tk.Label(root, text="Inerval (min.) :")
 interval_label.grid(row=4, column=0, padx=5, pady=5)
 interval_var = tk.StringVar(root)
-interval_var.set("5")
+interval_var.set(config_interval)
 interval_menu = tk.OptionMenu(root, interval_var, "1", "2", "5", "10", "15", "30", "60")
 interval_menu.grid(row=4, column=1, padx=5, pady=5, sticky="w")
 interval = int(interval_var.get()) * 60
