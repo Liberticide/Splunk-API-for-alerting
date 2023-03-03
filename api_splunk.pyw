@@ -50,22 +50,23 @@ def save_config():
 
 # création d'une fonction de chargement des paramètres de connexion
 def load_config():
-        # test si le fichier config.json existe
         if os.path.isfile(os.path.join(os.path.dirname(__file__), "config.json")):
             # chargement des paramètres de connexion depuis le fichier config.json
             with open(os.path.join(os.path.dirname(__file__), "config.json"), "r") as f:
                 config = json.load(f)
-
-                # définition des paramètres de connexion
-                # test si les paramètres de connexion sont présents dans le fichier config.json
-                if "splunk_url" in config:
-                    config_splunk_url = config["splunk_url"]
-                if "splunk_username" in config:
-                    config_splunk_username = config["splunk_username"]
-                if "query" in config:
-                    config_splunk_query = config["query"]
-                if "interval" in config:
-                    config_interval = config["interval"]
+            
+            # affichage des paramètres de connexion dans les champs de saisie
+            if "splunk_url" in config:
+                url_entry.delete(0, tk.END)
+                url_entry.insert(0, config["splunk_url"])
+            if "splunk_username" in config:
+                username_entry.delete(0, tk.END)
+                username_entry.insert(0, config["splunk_username"])
+            if "query" in config:
+                query_entry.delete(0, tk.END)
+                query_entry.insert(0, config["query"])
+            if "interval" in config:
+                interval_var.set(str(config["interval"] // 60))
         else:
             messagebox.showinfo("Information", "Le fichier config.json n'existe pas, les paramètres par défaut sont utilisés")
 
