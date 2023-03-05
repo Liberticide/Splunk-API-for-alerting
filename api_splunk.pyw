@@ -4,7 +4,7 @@ from xml.dom import minidom
 import json, requests, os
 
 
-version = '0.8'
+version = '0.8.1'
 status_count = ""
 config_splunk_url = "https://server.splunk.exemple:8089"
 config_splunk_username = "admin"
@@ -241,6 +241,9 @@ def send_query():
         else:
             result_text.config(height=40)
 
+    # on verifie si la fenetre est en mode caché, on la remet au premier plan
+    check_hide()
+
     # Programmation de la prochaine exécution de la fonction après un intervalle de temps donné
     root.after(interval*1000, send_query)
 
@@ -248,11 +251,25 @@ def send_query():
 root = tk.Tk()
 root.title("API Splunk")
 
+# fonction d' affichage de la fenêtre au premier plan et supprimer les bordures
+def first_plan():
+    root.attributes("-topmost", True)
+    root.overrideredirect(True)
+
+
+# creation d'une fonction, qui va vérifier si la fenêtre est en mode caché ou non
+# si le bouton "show_button" est égale à "afficher", la fonction va verifier si la fenêtre est au premier plan
+def check_hide():
+    if show_button.cget("text") == "Afficher":
+        first_plan()
+
+
 # creation d'une fonction pour cacher et afficher les entrées 
 def hide_show():
     if show_button.cget("text") == "Cacher":
-        root.attributes("-topmost", True)
-        root.overrideredirect(True)
+
+        # affichage de la fenêtre au premier plan et suppression des bordures
+        first_plan()
 
         # suppression des widgets
         url_label.grid_remove()
