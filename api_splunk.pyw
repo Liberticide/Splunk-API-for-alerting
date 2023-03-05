@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox
 from xml.dom import minidom
-import json, requests, os
+import json, requests, os, threading, time
 
 
 version = '0.8.1'
@@ -196,7 +196,7 @@ def send_query():
             # la données sont stockées dans le dictionnaire "status_count"
             # on initialise le dictionnaire avec les "status" possibles et on leur donne la valeur 0
             status_count = {"Critical": 0, "Warning": 0, "OK": 0, "Unknown": 0}
-
+            
             # on compte le nombre de "status" dans la colonne "status" de la variable "data["row"]"
             # pour trouver la colonne "status", on parcours la liste "data["fields"]" et on vérifie si la valeur de la colonne est égale à "status"
             # si la valeur de la colonne est égale à "status", on récupère l'index de la colonne
@@ -241,9 +241,6 @@ def send_query():
         else:
             result_text.config(height=40)
 
-    # on verifie si la fenetre est en mode caché, on la remet au premier plan
-    check_hide()
-
     # Programmation de la prochaine exécution de la fonction après un intervalle de temps donné
     root.after(interval*1000, send_query)
 
@@ -260,8 +257,9 @@ def first_plan():
 # creation d'une fonction, qui va vérifier si la fenêtre est en mode caché ou non
 # si le bouton "show_button" est égale à "afficher", la fonction va verifier si la fenêtre est au premier plan
 def check_hide():
-    if show_button.cget("text") == "Afficher":
+    while show_button.cget("text") == "Afficher":
         first_plan()
+        time.sleep(0.1)
 
 
 # creation d'une fonction pour cacher et afficher les entrées 
@@ -432,6 +430,10 @@ scrollbar = tk.Scrollbar(root)
 scrollbar.grid(row=7, column=2, sticky="ns")
 result_text.config(yscrollcommand=scrollbar.set)
 scrollbar.config(command=result_text.yview)
+
+# création d'un thread pour lancer la fonction "check_hide" en parallèle
+thread = threading.Thread(target=check_hide)
+thread.start()
 
 # Lancement de la boucle d'événements Tkinter
 root.mainloop()
