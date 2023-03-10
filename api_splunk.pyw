@@ -39,9 +39,9 @@ def save_config():
         "interval": interval
     }
 
-    # sauvegarde des paramètres de connexion dans le fichier config.json et création du fichier si il n'existe pas
-    # le fichier config.json est créé dans le même répertoire que le script
-    with open(os.path.join(os.path.dirname(__file__), "config.json"), "w") as f:
+    # sauvegarde des paramètres de connexion dans le fichier splunk_api.config.json et création du fichier si il n'existe pas
+    # le fichier splunk_api.config.json est créé dans le même répertoire que le script
+    with open(os.path.join(os.path.expanduser('~'), "splunk_api.config.json"), "w") as f:
         json.dump(config, f)
 
     # affichage d'un message de confirmation
@@ -50,9 +50,9 @@ def save_config():
 
 # création d'une fonction de chargement des paramètres de connexion
 def load_config():
-        if os.path.isfile(os.path.join(os.path.dirname(__file__), "config.json")):
-            # chargement des paramètres de connexion depuis le fichier config.json
-            with open(os.path.join(os.path.dirname(__file__), "config.json"), "r") as f:
+        if os.path.isfile(os.path.join(os.path.expanduser('~'), "splunk_api.config.json")):
+            # chargement des paramètres de connexion depuis le fichier splunk_api.config.json
+            with open(os.path.join(os.path.expanduser('~'), "splunk_api.config.json"), "r") as f:
                 config = json.load(f)
             
             # affichage des paramètres de connexion dans les champs de saisie
@@ -68,7 +68,7 @@ def load_config():
             if "interval" in config:
                 interval_var.set(str(config["interval"] // 60))
         else:
-            messagebox.showinfo("Information", "Le fichier config.json n'existe pas, les paramètres par défaut sont utilisés")
+            messagebox.showinfo("Information", "Le fichier splunk_api.config.json n'existe pas, les paramètres par défaut sont utilisés")
 
 
 # création d'une fonction de connexion à l'API Splunk
@@ -141,20 +141,28 @@ def send_query():
 
         result_text.delete(1.0, tk.END)
 
+        # on compte le nombre maximum de caractères du champ "fields" et "row" par colonne et on stocke le résultat dans la variable "max_char"
+        max_char = {}
+        if "fields" in data:
+            for i in range(len(data["fields"])):
+                max_char[i] = len(data["fields"][i])
+            for row in data["rows"]:
+                for i in range(len(row)):
+                    if len(row[i]) > max_char[i]:
+                        max_char[i] = len(row[i])
+        else:
+            messagebox.showinfo("Information", "La requête n'a pas retourné de résultat")
+            return
+        
         # affichage des données reçues
         # le champ "fields" contient les nom des colonnes
         # chaque valeur de "fields" est une liste de valeurs correspondant aux colonnes
         # si le champ "fields" n'est pas présent, c'est que la requête n'a pas retourné de résultat
         if "fields" in data:
-            # si la valeur de chaque colonne contient plus de 20 caractères, on affiche uniquement les 17 premiers et on ajoute "..." 
-            # et on supprime les caractères "{}" de la valeur
-            # si le nombre de caractères est inférieur a 20, on compte le nombre de caractères et on ajoute des espaces pour que toutes les colonnes aient la même taille
+            # on affiche les noms des colonnes, chaque valeur doit avoir une largeur de caractère égale à la valeur du dictionnaire "max_char"
             for i in range(len(data["fields"])):
-                if len(data["fields"][i]) > 20:
-                    data["fields"][i] = data["fields"][i][0:17] + "..."
-                else:
-                    data["fields"][i] = data["fields"][i] + " " * (20 - len(data["fields"][i]))
-            # on affiche les noms des colonnes
+                data["fields"][i] = data["fields"][i] + " " * (max_char[i] - len(data["fields"][i]))
+            # on affiche les noms des colonnes dans le champ "result_text"
             result_text_format = " | ".join(data["fields"])
             result_text.insert(tk.END, result_text_format.replace("{", "").replace("}", ""))
             result_text.insert(tk.END, "\n")
@@ -172,25 +180,22 @@ def send_query():
             if "rows" in data:
                 for i in range(len(data["rows"])):
                     for j in range(len(data["rows"][i])):
-                        if len(data["rows"][i][j]) > 20:
-                            data["rows"][i][j] = data["rows"][i][j][0:17] + "..."
-                        else:
-                            data["rows"][i][j] = data["rows"][i][j] + " " * (20 - len(data["rows"][i][j]))
+                        data["rows"][i][j] = data["rows"][i][j] + " " * (max_char[j] - len(data["rows"][i][j]))
                     result_text_format = " | ".join(data["rows"][i])
                     if "Critical" in result_text_format:
                         result_text.insert(tk.END, result_text_format.replace("{", "").replace("}", ""), "Critical")
-                        result_text.tag_config("Critical", background="dark red", selectbackground="blue", selectforeground="white", foreground="white")
+                        result_text.tag_config("Critical", background="red", selectbackground="blue", selectforeground="white", foreground="white")
                     elif "Warning" in result_text_format:
                         result_text.insert(tk.END, result_text_format.replace("{", "").replace("}", ""), "Warning")
                         result_text.tag_config("Warning", background="yellow", selectbackground="blue", selectforeground="white")
                     elif "OK" in result_text_format:
                         result_text.insert(tk.END, result_text_format.replace("{", "").replace("}", ""), "OK")
-                        result_text.tag_config("OK", background="green", selectbackground="blue", selectforeground="white")
+                        result_text.tag_config("OK", background="green", selectbackground="blue", selectforeground="white", foreground="white")
                     elif "Unknown" in result_text_format:
                         result_text.insert(tk.END, result_text_format.replace("{", "").replace("}", ""), "Unknown")
                         result_text.tag_config("Unknown", background="grey", selectbackground="blue", selectforeground="white")
                     result_text.insert(tk.END, "\n")
-                    result_text_format = ""
+                    result_text_format = "" 
 
             # comptage du nombre de lignes par "status", les "status" possibles sont "Critical", "Warning", "OK" et "Unknown"
             # la données sont stockées dans le dictionnaire "status_count"
@@ -230,9 +235,19 @@ def send_query():
         else:
             result_text.insert(tk.END, "Aucun résultat")
         
-        # adaptation de la largeur de la zone de texte en fonction du nombre de colonnes
-        result_text.config(width=len(data["fields"])*23, font=("Courier", 10))
+        # adaptation de la largeur de la zone de texte en fonction du nombre de caractères des colonnes
+        line_width = 8*23
+        if max_char != []:
+            line_width = 0
+            for i in max_char:
+                line_width += max_char[i]+3
         
+        # on limite la largeur de la zone de texte à 1200 pixels
+        if line_width < 210:
+            result_text.config(width=line_width, font=("Courier", 10))
+        else:
+            result_text.config(width=210, font=("Courier", 10))
+                
         # adaptation de la hauteur de la zone de texte en fonction du nombre de lignes
         # on ajoute 1 à la hauteur pour afficher la ligne des noms des colonnes
         # la hauteur de la zone de texte est limitée à 20 lignes
@@ -344,7 +359,7 @@ def create_menu():
     settings_menu.add_command(label="Nouveau Token", command=connect)
     settings_menu.add_command(label="Sauvegarder", command=save_config)
     settings_menu.add_command(label="Charger", command=load_config)
-    settings_menu.add_command(label="Réduir", command=hide_show)
+    settings_menu.add_command(label="Réduire", command=hide_show)
     settings_menu.add_command(label="Quitter", command=root.destroy)
 
     # creation d'un menu "Aide"
@@ -409,13 +424,13 @@ send_button = tk.Button(root, text="Envoyer", command=send_query)
 send_button.grid(row=5, column=1, padx=5, pady=5, sticky="w")
 
 # creation d'une zone de texte pour afficher les statuts
-status_label = tk.Label(root, text="Statut :")
+status_label = tk.Label(root)
 status_text_critical = tk.Text(root, height=1, width=20)
-status_text_critical.configure(background="dark red", selectbackground="blue", selectforeground="white", foreground="white")
+status_text_critical.configure(background="red", selectbackground="blue", selectforeground="white", foreground="white")
 status_text_warning = tk.Text(root, height=1, width=20)
 status_text_warning.configure(background="yellow", selectbackground="blue", selectforeground="white")
 status_text_ok = tk.Text(root, height=1, width=20)
-status_text_ok.configure(background="green", selectbackground="blue", selectforeground="white")
+status_text_ok.configure(background="green", selectbackground="blue", selectforeground="white", foreground="white")
 status_text_unknown = tk.Text(root, height=1, width=20)
 status_text_unknown.configure(background="grey", selectbackground="blue", selectforeground="white")
 
@@ -431,9 +446,12 @@ scrollbar.grid(row=7, column=2, sticky="ns")
 result_text.config(yscrollcommand=scrollbar.set)
 scrollbar.config(command=result_text.yview)
 
+
 # création d'un thread pour lancer la fonction "check_hide" en parallèle
 thread = threading.Thread(target=check_hide)
 thread.start()
+
+load_config()
 
 # Lancement de la boucle d'événements Tkinter
 root.mainloop()
