@@ -3,7 +3,7 @@ from tkinter import messagebox
 from xml.dom import minidom
 import json, requests, os, threading, time
 
-
+# déclaration des variables globales
 version = '0.8.3'
 status_count = ""
 config_splunk_url = "https://server.splunk.exemple:8089"
@@ -23,11 +23,30 @@ def about():
     messagebox.showinfo("About", "API Splunk v{}".format(version))
 
 
+# création d'une fonction d'encodage du mot de passe (pour éviter de stocker le mot de passe en clair dans le fichier de configuration)
+# la fonction encode le mot de passe en décalant chaque caractère de 128 places
+def encode_password(password):
+    encoded_password = ""
+    for c in password:
+        encoded_password += chr(ord(c) + 128)
+    return encoded_password
+
+
+# création d'une fonction de décodage du mot de passe (pour éviter de stocker le mot de passe en clair dans le fichier de configuration)
+# la fonction décode le mot de passe en décalant chaque caractère de 128 places
+def decode_password(encoded_password):
+    decode_password = ""
+    for c in encoded_password:
+        decode_password += chr(ord(c) - 128)
+    return decode_password
+
+
 # création d'une fonction de sauvegarde des paramètres de connexion
 def save_config():
     # récupération des paramètres de connexion saisis
     splunk_url = url_entry.get()
     splunk_username = username_entry.get()
+    splunk_password = encode_password(password_entry.get())
     query = query_entry.get()
     interval = int(interval_var.get()) * 60
 
@@ -35,6 +54,7 @@ def save_config():
     config = {
         "splunk_url": splunk_url,
         "splunk_username": splunk_username,
+        "splunk_password": splunk_password,
         "query": query,
         "interval": interval
     }
@@ -54,19 +74,38 @@ def load_config():
             # chargement des paramètres de connexion depuis le fichier splunk_api.config.json
             with open(os.path.join(os.path.expanduser('~'), "splunk_api.config.json"), "r") as f:
                 config = json.load(f)
+
+            count=0
             
             # affichage des paramètres de connexion dans les champs de saisie
             if "splunk_url" in config:
                 url_entry.delete(0, tk.END)
                 url_entry.insert(0, config["splunk_url"])
+            else:
+                count=count+1
             if "splunk_username" in config:
                 username_entry.delete(0, tk.END)
                 username_entry.insert(0, config["splunk_username"])
+            else:
+                count=count+1
+            if "splunk_password" in config:
+                password_entry.delete(0, tk.END)
+                password_entry.insert(0, decode_password(config["splunk_password"]))
+            else:
+                count=count+1
             if "query" in config:
                 query_entry.delete(0, tk.END)
                 query_entry.insert(0, config["query"])
+            else:
+                count=count+1
             if "interval" in config:
                 interval_var.set(str(config["interval"] // 60))
+            else:
+                count=count+1
+            
+            if count==0:
+                send_query()
+
         else:
             messagebox.showinfo("Information", "Le fichier splunk_api.config.json n'existe pas, les paramètres par défaut sont utilisés")
 
