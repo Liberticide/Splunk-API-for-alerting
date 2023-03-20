@@ -4,7 +4,7 @@ from xml.dom import minidom
 import json, requests, os, threading, time
 
 
-version = '0.8.2'
+version = '0.8.3'
 status_count = ""
 config_splunk_url = "https://server.splunk.exemple:8089"
 config_splunk_username = "admin"
@@ -242,7 +242,7 @@ def send_query():
             for i in max_char:
                 line_width += max_char[i]+3
         
-        # on limite la largeur de la zone de texte à 1200 pixels
+        # on limite la largeur de la zone de texte à 210 caractères et on active le défilement horizontal
         if line_width < 210:
             result_text.config(width=line_width, font=("Courier", 10))
         else:
@@ -259,9 +259,10 @@ def send_query():
     # Programmation de la prochaine exécution de la fonction après un intervalle de temps donné
     root.after(interval*1000, send_query)
 
-# Création de la fenêtre principale
+# Création de la fenêtre principale, la fenêtre principale ne peut pas être redimensionnée
 root = tk.Tk()
 root.title("API Splunk")
+root.resizable(False, False)
 
 # fonction d' affichage de la fenêtre au premier plan et supprimer les bordures
 def first_plan():
@@ -298,6 +299,7 @@ def hide_show():
         result_label.grid_remove()
         result_text.grid_remove()
         scrollbar.grid_remove()
+        scrollbar_x.grid_remove()
         send_button.grid_remove()
 
         # affichage des widgets des "status"
@@ -331,6 +333,7 @@ def hide_show():
         result_label.grid(row=7, column=0, padx=5, pady=5)
         result_text.grid(row=7, column=1, padx=5, pady=5)
         scrollbar.grid(row=7, column=2, sticky="ns")
+        scrollbar_x.grid(row=8, column=1, sticky="we")
         send_button.grid(row=5, column=1, padx=5, pady=5, sticky="w")
 
         # suppression des widgets des "status"
@@ -439,12 +442,19 @@ result_label = tk.Label(root, text="Résultat :")
 result_label.grid(row=7, column=0, padx=5, pady=5)
 result_text = tk.Text(root, height=20, width=150)
 result_text.grid(row=7, column=1, padx=5, pady=5)
+result_text.config(wrap="none")
 
 # Création de la barre de défilement pour la zone de sortie
 scrollbar = tk.Scrollbar(root)
 scrollbar.grid(row=7, column=2, sticky="ns")
 result_text.config(yscrollcommand=scrollbar.set)
 scrollbar.config(command=result_text.yview)
+
+# Création d'une barre de défilement horizontale pour la zone texte de sortie des résultats et désactive le retour à la ligne automatique
+scrollbar_x = tk.Scrollbar(root, orient="horizontal")
+scrollbar_x.grid(row=8, column=1, sticky="we")
+result_text.config(xscrollcommand=scrollbar_x.set)
+scrollbar_x.config(command=result_text.xview)
 
 
 # création d'un thread pour lancer la fonction "check_hide" en parallèle
