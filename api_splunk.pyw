@@ -4,7 +4,7 @@ from xml.dom import minidom
 import json, requests, os, threading, time
 
 # déclaration des variables globales
-version = '0.8.3'
+version = '0.8.4'
 status_count = ""
 config_splunk_url = "https://server.splunk.exemple:8089"
 config_splunk_username = "admin"
