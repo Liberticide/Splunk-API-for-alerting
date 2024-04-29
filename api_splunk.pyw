@@ -449,7 +449,7 @@ query_entry.insert(0, config_splunk_query)
 # les choix possibles sont 1, 2, 5, 10, 15, 30, 60 minutes
 # la valeur par défaut est 5 minutes
 # la valeur est stockée dans la variable interval_var
-interval_label = tk.Label(root, text="Inerval (min.) :")
+interval_label = tk.Label(root, text="Interval (min.) :")
 interval_label.grid(row=4, column=0, padx=5, pady=5)
 interval_var = tk.StringVar(root)
 interval_var.set(config_interval)
